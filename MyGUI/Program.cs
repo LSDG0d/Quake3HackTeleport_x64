@@ -16,6 +16,7 @@ namespace MyGUI
     }
     public class Program : Overlay
     {
+        #region Constantas
         private static Vector3 FreezeFacePoin = new Vector3(87f, 0f, 0f);
         public const string MyNick = "ZXClown";
         public static int MyIndex { get; set; } = 0;
@@ -23,9 +24,13 @@ namespace MyGUI
         public static Swed _swed = new Swed("quake3e-vulkan.x64");
         public static IntPtr _moduleBase = IntPtr.Zero;
         public static Player MyPlayer;
+        #endregion
+        #region Main
+
         [STAThread]
         private static void Main(string[] args)
         {
+            #region StartProgramm
             var hHook = SetHook();
             Console.WriteLine("App start. Main process = " + MainProcess.Id);
             _moduleBase = _swed.GetModuleBase("quake3e-vulkan.x64.exe");
@@ -34,7 +39,10 @@ namespace MyGUI
             Application.Run();
             Console.WriteLine("Unhook");
             UnhookWindowsHookEx(hHook);
+            #endregion
         }
+        #endregion
+        #region Render
         protected override void Render()
         {
             ImGui.Begin("MyGUI");
@@ -62,6 +70,9 @@ namespace MyGUI
                 }
             }
         }
+        #endregion
+        #region Teleport 
+
         private static void TeleportToPosition(Vector3 position)
         {
             _swed.WriteVec(MyPlayer.Position, position);
@@ -78,6 +89,10 @@ namespace MyGUI
             }
             ListInitialize = true;
         }
+
+        #endregion
+        #region SaveCurrentPosition 
+
         private static void SaveCurrentPosition(int i)
         {
             if (!ListInitialize)
@@ -98,6 +113,7 @@ namespace MyGUI
                 TeleportToPosition(_savePoints[i].Position);
             }
         }
+        #endregion
         #region DllImports
         [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProcDelegate lpfn, IntPtr lMod, int dwThreadId);
@@ -160,10 +176,60 @@ namespace MyGUI
                     Task.Run(() => ZeroAmmoToEnemy());
                     //GodMode();
                 }
+                if (khs.VirtualKeyCode == 20)
+                {
+                    Task.Run(async () => Aim());
+                }
             }
             return CallNextHookEx(_mHHook, nCode, wParam, lParam);
         }
 
+        #region Aim
+
+        private static async Task Aim()
+        {
+            Vector3 target = GetFirstEnemyPosition();
+            Vector3 mousePosition = CalculateAim(target, _swed.ReadVec(MyPlayer.Position));
+            _swed.WriteVec(MyPlayer.FaceVision, mousePosition);
+        }
+
+        private static Vector3 CalculateAim(Vector3 target, Vector3 myPosition)
+        {
+            Vector3 result = new Vector3();
+            result.Y = myPosition.Y - target.Y;
+            result.X = myPosition.X - target.X;
+            result.Z = myPosition.Z - target.Z;
+            return CalculateCelsius(result);
+        }
+
+        private static Vector3 CalculateCelsius(Vector3 rectangle)
+        {
+            float X = (float)(Math.Atan2(rectangle.Y,rectangle.X)*180/Math.PI);
+            double tempDistance = Math.Sqrt(Math.Pow(rectangle.X, 2) + Math.Pow(rectangle.Y, 2));
+            float Z = (float)(Math.Atan2(rectangle.Z,tempDistance) * 180/Math.PI);
+            return new Vector3(X, Z, 0);
+        }
+
+        private static Vector3 GetFirstEnemyPosition()
+        {
+            Vector3 result;
+            float minDistance = int.MaxValue-10;
+            int i = 0;
+            int id = 0;
+            foreach (var player in _Offsets.AllPlayers)
+            {
+               if(player.Distance < 1) continue;
+               if (player.Distance < minDistance)
+               {
+                   minDistance = player.Distance;
+                   id = i;
+               }
+               i++;
+            }
+            return _swed.ReadVec(_Offsets.AllPlayers[id].Position);
+        }
+
+        #endregion
         #region ZeroAmmo
         private static bool IsZeroAmmo { get; set; } = false;
 

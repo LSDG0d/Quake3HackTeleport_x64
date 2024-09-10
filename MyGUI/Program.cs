@@ -20,6 +20,7 @@ namespace MyGUI
         private static Vector3 FreezeFacePoin = new Vector3(87f, 0f, 0f);
         public const string MyNick = "ZXClown";
         public static int MyIndex { get; set; } = 0;
+        public static bool WallHackEnable = false;
         private static List<SavePoint> _savePoints = new List<SavePoint>();
         public static Swed _swed = new Swed("quake3e-vulkan.x64");
         public static IntPtr _moduleBase = IntPtr.Zero;
@@ -43,6 +44,26 @@ namespace MyGUI
         }
         #endregion
         #region Render
+
+        private void DrawOverlay()
+        {
+            if (WallHackEnable)
+            {
+                ImGui.SetNextWindowSize(new Vector2(1920,1080));
+                ImGui.SetNextWindowPos(new Vector2(0,0));
+                ImGui.Begin("Overlay", ImGuiWindowFlags.NoDecoration |
+                                       ImGuiWindowFlags.NoBackground |
+                                       ImGuiWindowFlags.NoBringToFrontOnFocus |
+                                       ImGuiWindowFlags.NoMove |
+                                       ImGuiWindowFlags.NoInputs |
+                                       ImGuiWindowFlags.NoCollapse |
+                                       ImGuiWindowFlags.NoScrollbar |
+                                       ImGuiWindowFlags.NoScrollWithMouse);
+                ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+                Vector2 drawPosition = new Vector2(100, 100);
+                drawList.AddRect(drawPosition,Vector2.Add(drawPosition, new Vector2(300, 150)),ImGui.ColorConvertFloat4ToU32(new Vector4(1,0,0,1)));
+            }
+        }
         protected override void Render()
         {
             ImGui.Begin("MyGUI");
@@ -50,26 +71,32 @@ namespace MyGUI
             {
                 Offsets.Player player = new Player();
             }
-            if (ImGui.BeginMenu("Players") || true)
+
+            if (ImGui.Checkbox("WallHack", ref WallHackEnable))
             {
-                foreach (var player in _Offsets.AllPlayers.Select((Value, i) => new { i, Value }))
-                {
-                    string nana = $"{_swed.ReadString(player.Value.NickName, 7)}";
-                    if (nana[0] == '\0') { continue; }
-                    ImGui.Separator();
-                    if (nana == MyNick)
-                    {
-                        MyIndex = player.i;
-                        MyPlayer = (Player)player.Value;
-                        ImGui.TextColored(new Vector4(1, 0, 1, 1), "It's me");
-                    }
-                    ImGui.Text($"Nick: {_swed.ReadString(player.Value.NickName, 7)}");
-                    ImGui.Text($"\tHealth: {_swed.ReadInt(player.Value.Health)} \tAmmo: {_swed.ReadInt(player.Value.AmmoInFirstWeapon)}\n\tPosition: {_swed.ReadVec(player.Value.Position)}\n\tMove: {_swed.ReadVec(player.Value.MoveVector)}");
-                    ImGui.Text($"\tLook: {_swed.ReadVec(player.Value.FaceVision)}");
-                    ImGui.Text($"\tDistance: {player.Value.GetDistance(_Offsets.AllPlayers[MyIndex])}");
-                }
+                DrawOverlay();
             }
+            ImGui.BeginMenu("Players");
+            foreach (var player in _Offsets.AllPlayers.Select((Value, i) => new { i, Value }))
+            {
+                string nana = $"{_swed.ReadString(player.Value.NickName, 7)}";
+                if (nana[0] == '\0') { continue; }
+                ImGui.Separator();
+                if (nana == MyNick)
+                {
+                    MyIndex = player.i;
+                    MyPlayer = (Player)player.Value;
+                    ImGui.TextColored(new Vector4(1, 0, 1, 1), "It's me");
+                }
+                ImGui.Text($"Nick: {_swed.ReadString(player.Value.NickName, 7)}");
+                ImGui.Text($"\tHealth: {_swed.ReadInt(player.Value.Health)} \tAmmo: {_swed.ReadInt(player.Value.AmmoInFirstWeapon)}\n\tPosition: {_swed.ReadVec(player.Value.Position)}\n\tMove: {_swed.ReadVec(player.Value.MoveVector)}");
+                ImGui.Text($"\tLook: {_swed.ReadVec(player.Value.FaceVision)}");
+                ImGui.Text($"\tDistance: {player.Value.GetDistance(_Offsets.AllPlayers[MyIndex])}");
+            }
+            ImGui.End();
         }
+
+
         #endregion
         #region Teleport 
 
@@ -204,27 +231,27 @@ namespace MyGUI
 
         private static Vector3 CalculateCelsius(Vector3 rectangle)
         {
-            float X = (float)(Math.Atan2(rectangle.Y,rectangle.X)*180/Math.PI);
+            float X = (float)(Math.Atan2(rectangle.Y, rectangle.X) * 180 / Math.PI);
             double tempDistance = Math.Sqrt(Math.Pow(rectangle.X, 2) + Math.Pow(rectangle.Y, 2));
-            float Z = (float)(Math.Atan2(rectangle.Z,tempDistance) * 180/Math.PI);
+            float Z = (float)(Math.Atan2(rectangle.Z, tempDistance) * 180 / Math.PI);
             return new Vector3(X, Z, 0);
         }
 
         private static Vector3 GetFirstEnemyPosition()
         {
             Vector3 result;
-            float minDistance = int.MaxValue-10;
+            float minDistance = int.MaxValue - 10;
             int i = 0;
             int id = 0;
             foreach (var player in _Offsets.AllPlayers)
             {
-               if(player.Distance < 1) continue;
-               if (player.Distance < minDistance)
-               {
-                   minDistance = player.Distance;
-                   id = i;
-               }
-               i++;
+                if (player.Distance < 1) continue;
+                if (player.Distance < minDistance)
+                {
+                    minDistance = player.Distance;
+                    id = i;
+                }
+                i++;
             }
             return _swed.ReadVec(_Offsets.AllPlayers[id].Position);
         }
@@ -270,23 +297,23 @@ namespace MyGUI
                 Vector3 playerVisioVector3 = _swed.ReadVec(MyPlayer.FaceVision);
                 if (playerVisioVector3.Y >= 0 && playerVisioVector3.Y <= 90)
                 {
-                    playerVector3.X = playerVector3.X + 100 + 100 * ((float)Math.Cos((double)playerVisioVector3.Y / 25 ));
-                    playerVector3.Y = playerVector3.Y + 100 + 100 * ((float)Math.Sin((double)playerVisioVector3.Y / 25 ));
+                    playerVector3.X = playerVector3.X + 100 + 100 * ((float)Math.Cos((double)playerVisioVector3.Y / 25));
+                    playerVector3.Y = playerVector3.Y + 100 + 100 * ((float)Math.Sin((double)playerVisioVector3.Y / 25));
                 }
                 else if (playerVisioVector3.Y <= -90 && playerVisioVector3.Y >= -180)
                 {
-                    playerVector3.X = playerVector3.X - 100 - 100 * ((float)Math.Cos((double)playerVisioVector3.Y /25 ));
-                    playerVector3.Y = playerVector3.Y - 100 - 100 * ((float)Math.Sin((double)playerVisioVector3.Y / 25 ));
+                    playerVector3.X = playerVector3.X - 100 - 100 * ((float)Math.Cos((double)playerVisioVector3.Y / 25));
+                    playerVector3.Y = playerVector3.Y - 100 - 100 * ((float)Math.Sin((double)playerVisioVector3.Y / 25));
                 }
                 else if (playerVisioVector3.Y >= 90 && playerVisioVector3.Y <= 180)
                 {
-                    playerVector3.X = playerVector3.X - 100 - 100 * ((float)Math.Cos((double)playerVisioVector3.Y / 25 ));
-                    playerVector3.Y = playerVector3.Y + 100 + 100 * ((float)Math.Sin((double)playerVisioVector3.Y / 25 ));
+                    playerVector3.X = playerVector3.X - 100 - 100 * ((float)Math.Cos((double)playerVisioVector3.Y / 25));
+                    playerVector3.Y = playerVector3.Y + 100 + 100 * ((float)Math.Sin((double)playerVisioVector3.Y / 25));
                 }
                 else if (playerVisioVector3.Y <= 0 && playerVisioVector3.Y >= -90)
                 {
-                    playerVector3.X = playerVector3.X + 100 + 100 * ((float)Math.Cos((double)playerVisioVector3.Y / 25 ));
-                    playerVector3.Y = playerVector3.Y - 100 - 100 * ((float)Math.Sin((double)playerVisioVector3.Y / 25 ));
+                    playerVector3.X = playerVector3.X + 100 + 100 * ((float)Math.Cos((double)playerVisioVector3.Y / 25));
+                    playerVector3.Y = playerVector3.Y - 100 - 100 * ((float)Math.Sin((double)playerVisioVector3.Y / 25));
                 }
                 foreach (var player in _Offsets.AllPlayers)
                 {
